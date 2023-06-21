@@ -1,0 +1,81 @@
+import {StyleSheet} from 'react-native';
+
+export default StyleSheet.create({
+  sendContainerStyle: {
+    borderWidth: 0,
+    backgroundColor: '#2cc8e1',
+    borderRadius: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 40,
+    height: 40,
+    right: -45,
+    alignSelf: 'center',
+  },
+  sendIcon: {transform: [{rotate: '0deg'}]},
+  inputToolbar: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    justifyContent: 'center',
+    width: '82%',
+    marginHorizontal: 15,
+    borderWidth: 0.5,
+    borderColor: 'grey',
+    borderRadius: 25,
+  },
+  header: {
+    width: '100%',
+    height: 90,
+    backgroundColor: 'rgba(23,97,108,0.76)',
+    // alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
+  },
+  dropdownButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-end',
+    width: 50,
+    height: 50,
+  },
+  menu: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    marginTop: 55,
+    minHeight: 30,
+    paddingVertical: 0,
+  },
+  menuContainer: {alignSelf: 'flex-end'},
+  container: {flex: 1},
+  menuItem: {justifyContent: 'center', alignItems: 'center'},
+  clipIcon: {
+    paddingBottom: 15,
+
+    // transform: [{rotate: '45deg'}],
+  },
+  videoContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoIconContainer: {
+    position: 'absolute',
+    zIndex: 200,
+    backgroundColor: '#2cc8e1',
+    borderRadius: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 5,
+  },
+  overlay: {
+    position: 'absolute',
+    zIndex: 100,
+    height: 150,
+    borderRadius: 15,
+    width: 200,
+    backgroundColor: 'rgba(133,133,133,0.39)',
+  },
+  video: {
+    height: 150,
+    width: 200,
+    borderRadius: 15,
+  },
+});
