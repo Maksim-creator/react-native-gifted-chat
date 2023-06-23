@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {Dimensions, StyleSheet} from 'react-native';
 
 export default StyleSheet.create({
   sendContainerStyle: {
@@ -38,6 +38,7 @@ export default StyleSheet.create({
     height: 50,
   },
   menu: {
+    borderRadius: 15,
     backgroundColor: 'rgba(255,255,255,0.16)',
     marginTop: 55,
     minHeight: 30,
@@ -77,5 +78,34 @@ export default StyleSheet.create({
     height: 150,
     width: 200,
     borderRadius: 15,
+  },
+  tickStyle: {
+    position: 'absolute',
+    bottom: 12,
+    right: -3,
+  },
+  messageEditMenu: {marginTop: -40, marginRight: 10},
+  messageEditMenuItem: {color: 'red'},
+  messageAudio: {
+    height: 45,
+    width: Dimensions.get('screen').width / 2,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  playAudioButton: {
+    backgroundColor: 'rgba(255,255,255,0.56)',
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 100,
+  },
+  renderMessageAudioText: {
+    fontWeight: '600',
+    fontSize: 12,
+    color: 'white',
+    paddingHorizontal: 10,
   },
 });

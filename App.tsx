@@ -1,17 +1,22 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {Context, useCallback, useEffect, useRef, useState} from 'react';
 import {
   Actions,
+  Bubble,
+  BubbleProps,
   GiftedChat,
   IMessage,
   InputToolbar,
+  InputToolbarProps,
+  MessageAudioProps,
   MessageVideoProps,
-  Send,
   SendProps,
+  Time,
+  TimeProps,
 } from 'react-native-gifted-chat';
 import socket from './src/utils/soketIO';
 import {
   Alert,
-  Dimensions,
+  Easing,
   ImageBackground,
   Text,
   TouchableOpacity,
@@ -27,6 +32,14 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Video from 'react-native-video';
+import {
+  isMessageEmpty,
+  renderTimeData,
+  renderTimeStyles,
+} from './src/utils/helpers';
+import Header from './src/components/Header';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player/index';
+import {Animated} from 'react-native';
 
 const IMAGE_BACKGROUND =
   'https://i.pinimg.com/564x/e0/77/ee/e077eec5651d294de5ffd25b340f9e13.jpg';
@@ -42,6 +55,14 @@ const sendIconProps = {
   color: 'white',
 };
 
+const newMessageProps = {
+  user: {_id: 1, name: 'React Native'},
+  sent: true,
+  createdAt: new Date(),
+};
+
+const audioRecorderPlayer = new AudioRecorderPlayer();
+
 function App(): JSX.Element {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [visible, setVisible] = React.useState(false);
@@ -51,13 +72,22 @@ function App(): JSX.Element {
   );
   const [text, setText] = useState('');
   const [isPlayed, setVideoPlayed] = useState(false);
+  const [messageMenuVisible, setMessageMenuVisible] = useState<
+    number | undefined
+  >(undefined);
+  const [audioPlayed, setAudioPlayed] = useState<undefined | number>(undefined);
+  const messageMenuRef = useRef(null);
 
   const playVideo = () => setVideoPlayed(true);
   const stopVideo = () => setVideoPlayed(false);
 
   const openMenu = () => setVisible(true);
-
   const closeMenu = () => setVisible(false);
+
+  const closeMessageMenu = () => setMessageMenuVisible(undefined);
+  const openMessageMenu = (id: number) => setMessageMenuVisible(id);
+
+  const sendButtonScale = useRef(new Animated.Value(1));
 
   useEffect(() => {
     socket.on('connection', () => {
@@ -67,10 +97,9 @@ function App(): JSX.Element {
       setMessages(previousMessages =>
         GiftedChat.append(previousMessages, [
           {
-            _id: new Date().toString(),
             text: m,
-            createdAt: new Date(),
-            user: {_id: 2, name: 'React Native'},
+            _id: Math.random() * 1000000,
+            ...newMessageProps,
           },
         ]),
       );
@@ -78,7 +107,7 @@ function App(): JSX.Element {
   }, []);
 
   const [typing, setTyping] = useState(false);
-  let timeout;
+  let timeout: any;
 
   function timeoutFunction() {
     setTyping(false);
@@ -103,7 +132,7 @@ function App(): JSX.Element {
       quality: 1,
     };
     const response = await launchImageLibrary(options);
-    console.log(response);
+
     if (response.didCancel) {
       Alert.alert('canceled');
     } else {
@@ -114,7 +143,7 @@ function App(): JSX.Element {
           {
             video: file.uri!,
             _id: Math.random() * 1000000,
-            user: {_id: 1, name: 'React Native'},
+            ...newMessageProps,
           },
         ]);
       } else {
@@ -126,7 +155,7 @@ function App(): JSX.Element {
             {
               image: file.uri!,
               _id: Math.random() * 1000000,
-              user: {_id: 1, name: 'React Native'},
+              ...newMessageProps,
             },
           ]);
         }
@@ -135,31 +164,83 @@ function App(): JSX.Element {
     closeMenu();
   };
 
-  const onSend = useCallback((msgs: IMessage[]) => {
-    // socket.emit('chat message', msgs[msgs.length - 1].text);
-    console.log(1);
-    setMessages(previousMessages => GiftedChat.append(previousMessages, msgs));
-  }, []);
+  const onSend = useCallback(
+    (msgs: IMessage[]) => {
+      // socket.emit('chat message', msgs[msgs.length - 1].text);
+      if (isMessageEmpty(msgs[0])) {
+        if (messageType === MessageTypes.VOICE) {
+          setMessageType(MessageTypes.VIDEO);
+        } else {
+          setMessageType(MessageTypes.VOICE);
+        }
+      } else {
+        setText('');
+        setMessages(previousMessages =>
+          GiftedChat.append(previousMessages, msgs),
+        );
+      }
+    },
+    [messageType],
+  );
 
   const renderSend = useCallback(
     (props: SendProps<IMessage>) => {
       return (
-        <Send {...props} containerStyle={styles.sendContainerStyle}>
-          <Icon
-            name={
-              text.length
-                ? 'send'
-                : messageType === MessageTypes.VOICE
-                ? 'microphone-outline'
-                : 'camera-outline'
-            }
-            {...sendIconProps}
-          />
-        </Send>
+        <Animated.View
+          style={[
+            styles.sendContainerStyle,
+            {transform: [{scale: sendButtonScale.current}]},
+          ]}>
+          <TouchableOpacity
+            onLongPress={onStartRecord}
+            onPressOut={!text.length ? onStopRecord : undefined}
+            onPress={() => {
+              onSend([
+                {
+                  text: props.text!,
+                  _id: Math.random() * 1000000,
+                  ...newMessageProps,
+                },
+              ]);
+            }}>
+            <Icon
+              name={
+                text.length
+                  ? 'send'
+                  : messageType === MessageTypes.VOICE
+                  ? 'microphone-outline'
+                  : 'camera-outline'
+              }
+              {...sendIconProps}
+            />
+          </TouchableOpacity>
+        </Animated.View>
       );
     },
     [messageType, text.length],
   );
+
+  const renderInputToolbar = (props: InputToolbarProps<IMessage>) => {
+    return (
+      <InputToolbar
+        {...props}
+        renderActions={actionsProps => (
+          <Actions
+            {...actionsProps}
+            icon={() => (
+              <Icon
+                onPress={() => chooseImage(onSend)}
+                style={styles.clipIcon}
+                name={'paperclip'}
+                size={25}
+              />
+            )}
+          />
+        )}
+        containerStyle={styles.inputToolbar}
+      />
+    );
+  };
 
   const renderMessageVideo = (props: MessageVideoProps<IMessage>) => {
     return (
@@ -184,6 +265,154 @@ function App(): JSX.Element {
     );
   };
 
+  const removeMessage = (id: number) => () => {
+    setMessages(prevState => prevState.filter(item => item._id !== id));
+  };
+
+  const renderBubble = (props: BubbleProps<IMessage>) => {
+    return (
+      <Menu
+        contentStyle={[styles.menu, styles.messageEditMenu]}
+        visible={props.currentMessage?._id === messageMenuVisible}
+        onDismiss={closeMessageMenu}
+        anchor={
+          <Bubble
+            {...props}
+            ref={messageMenuRef}
+            onLongPress={(context: Context<IMessage>, message: IMessage) => {
+              openMessageMenu(+message._id);
+            }}
+            tickStyle={
+              !props.currentMessage?.text! &&
+              !props.currentMessage?.audio &&
+              styles.tickStyle
+            }
+          />
+        }>
+        <Menu.Item
+          onPress={removeMessage(+props.currentMessage?._id!)}
+          title="Remove"
+          titleStyle={styles.messageEditMenuItem}
+          leadingIcon={() => (
+            <Icon name={'trash-can-outline'} size={25} color={'red'} />
+          )}
+          style={styles.menuItem}
+        />
+      </Menu>
+    );
+  };
+
+  const renderTime = (props: TimeProps<IMessage>) => {
+    return (
+      <Time
+        {...props}
+        {...renderTimeStyles(
+          !props.currentMessage?.text,
+          !!props.currentMessage?.audio,
+        )}
+        timeFormat={renderTimeData(props.currentMessage!.createdAt)}
+      />
+    );
+  };
+  const audioDuration = useRef(0);
+
+  const onStartRecord = () => {
+    Animated.timing(sendButtonScale.current, {
+      duration: 200,
+      useNativeDriver: true,
+      toValue: 1.3,
+      easing: Easing.linear,
+    }).start(async () => {
+      const result = await audioRecorderPlayer.startRecorder(
+        `${Math.floor(Math.random() * 10000)}.m4a`,
+      );
+
+      audioRecorderPlayer.addRecordBackListener(e => {
+        audioDuration.current = +(Math.floor(e.currentPosition) / 100000)
+          .toString()
+          .slice(0, 4);
+        return;
+      });
+    });
+  };
+
+  const onStopRecord = async () => {
+    Animated.timing(sendButtonScale.current, {
+      toValue: 1,
+      useNativeDriver: true,
+      easing: Easing.linear,
+      duration: 200,
+    }).start(async () => {
+      const result = await audioRecorderPlayer.stopRecorder();
+      audioRecorderPlayer.removeRecordBackListener();
+      setMessages(prev =>
+        GiftedChat.append(prev, [
+          {
+            audio: result,
+            ...newMessageProps,
+            _id: Math.random() * 100000,
+            text: audioDuration.current.toString(),
+          },
+        ]),
+      );
+    });
+  };
+
+  const renderMessageAudio = useCallback(
+    (props: MessageAudioProps<IMessage>) => {
+      return (
+        <View style={styles.messageAudio}>
+          <TouchableOpacity
+            onPress={
+              audioPlayed === props.currentMessage?._id
+                ? () => onPausePlay()
+                : () =>
+                    onStartPlay(
+                      +props.currentMessage!._id!,
+                      props.currentMessage?.audio?.split('/').slice(-1)[0]!,
+                    )
+            }
+            style={styles.playAudioButton}>
+            <Icon
+              name={
+                audioPlayed === props.currentMessage?._id ? 'pause' : 'play'
+              }
+              color={'white'}
+              size={25}
+            />
+          </TouchableOpacity>
+          <Text style={styles.renderMessageAudioText}>
+            {props.currentMessage?.text}
+          </Text>
+        </View>
+      );
+    },
+    [audioPlayed],
+  );
+
+  const onStartPlay = async (audioId: number, uri: string) => {
+    setAudioPlayed(audioId);
+
+    await audioRecorderPlayer.startPlayer(uri);
+    audioRecorderPlayer.addPlayBackListener(e => {
+      if (e.duration === e.currentPosition) {
+        onStopPlay();
+      }
+      return;
+    });
+  };
+
+  const onPausePlay = async () => {
+    setAudioPlayed(undefined);
+    await audioRecorderPlayer.pausePlayer();
+  };
+
+  const onStopPlay = async () => {
+    setAudioPlayed(undefined);
+    await audioRecorderPlayer.stopPlayer();
+    await audioRecorderPlayer.removePlayBackListener();
+  };
+
   useEffect(() => {
     (async function () {
       const img = await AsyncStorage.getItem('bg');
@@ -197,31 +426,12 @@ function App(): JSX.Element {
     <PaperProvider>
       <ImageBackground style={styles.container} source={{uri: background}}>
         <SafeAreaView style={styles.container} edges={['bottom']}>
-          <View style={styles.header}>
-            <View style={styles.menuContainer}>
-              <Menu
-                contentStyle={styles.menu}
-                visible={visible}
-                onDismiss={closeMenu}
-                anchor={
-                  <TouchableOpacity
-                    onPress={visible ? closeMenu : openMenu}
-                    style={styles.dropdownButton}>
-                    <Icon name={'dots-vertical'} size={30} color={'white'} />
-                  </TouchableOpacity>
-                }>
-                <Menu.Item
-                  onPress={() => chooseImage()}
-                  title="Change theme"
-                  titleStyle={{color: 'white'}}
-                  leadingIcon={() => (
-                    <Icon name={'palette'} size={25} color={'white'} />
-                  )}
-                  style={styles.menuItem}
-                />
-              </Menu>
-            </View>
-          </View>
+          <Header
+            menuVisible={visible}
+            closeMenu={closeMenu}
+            openMenu={openMenu}
+            chooseImage={chooseImage}
+          />
           <GiftedChat
             messages={messages}
             onSend={msgs => onSend(msgs)}
@@ -231,29 +441,13 @@ function App(): JSX.Element {
             }}
             isTyping={typing}
             renderSend={renderSend}
+            text={text}
             alwaysShowSend={true}
             renderMessageVideo={renderMessageVideo}
-            renderInputToolbar={props => (
-              <InputToolbar
-                {...props}
-                // renderSend={renderSend}
-                renderActions={actionsProps => (
-                  <Actions
-                    {...actionsProps}
-                    onSend={() => console.log('1')}
-                    icon={() => (
-                      <Icon
-                        onPress={() => chooseImage(onSend)}
-                        style={styles.clipIcon}
-                        name={'paperclip'}
-                        size={25}
-                      />
-                    )}
-                  />
-                )}
-                containerStyle={styles.inputToolbar}
-              />
-            )}
+            renderMessageAudio={renderMessageAudio}
+            renderInputToolbar={renderInputToolbar}
+            renderBubble={renderBubble}
+            renderTime={renderTime}
           />
         </SafeAreaView>
       </ImageBackground>
