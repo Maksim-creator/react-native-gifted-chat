@@ -15,7 +15,7 @@ export default StyleSheet.create({
   sendIcon: {transform: [{rotate: '0deg'}]},
   inputToolbar: {
     alignItems: 'center',
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
     justifyContent: 'center',
     width: '82%',
     marginHorizontal: 15,
@@ -49,13 +49,16 @@ export default StyleSheet.create({
   menuItem: {justifyContent: 'center', alignItems: 'center'},
   clipIcon: {
     paddingBottom: 15,
-
-    // transform: [{rotate: '45deg'}],
   },
   videoContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  videomessage: {
+    height: 200,
+    width: 200,
+    borderRadius: 100,
   },
   videoIconContainer: {
     position: 'absolute',
@@ -108,4 +111,21 @@ export default StyleSheet.create({
     color: 'white',
     paddingHorizontal: 10,
   },
+  cameraContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.34)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  camera: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  disabledCamera: {height: 0, width: 0},
 });
